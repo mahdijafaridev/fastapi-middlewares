@@ -1,0 +1,87 @@
+[project]
+name = "middlewares"
+version = "0.1.0"
+description = "Essential middlewares for FastAPI - Simple, fast, production-ready"
+readme = "README.md"
+authors = [
+  {name = "Mahdi Jafari", email = "mahdijafaridev@gmail.com"}
+]
+maintainers = [
+  {name = "Mahdi Jafari", email = "mahdijafaridev@gmail.com"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Framework :: FastAPI",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+license = {text = "MIT"}
+dependencies = [
+    "fastapi[standard]>=0.1.17",
+    "starlette>=0.50.0",
+]
+requires-python = ">= 3.10"
+
+[project.optional-dependencies]
+dev = [
+    "coverage",
+    "pytest",
+    "pytest-asyncio",
+    "httpx",
+    "ruff",
+    "uvicorn[standard]",
+]
+
+[project.urls]
+Homepage = "https://github.com/mahdijafaridev/fastapi-middlewares"
+Repository = "https://github.com/mahdijafaridev/fastapi-middlewares"
+Issues = "https://github.com/mahdijafaridev/fastapi-middlewares/issues"
+Documentation = "https://github.com/mahdijafaridev/fastapi-middlewares#readme"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=9.0.1",
+]
