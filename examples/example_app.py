@@ -5,15 +5,12 @@ import logging
 from fastapi import FastAPI, HTTPException, Request
 from middlewares import add_essentials
 
-# Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
-# Create app
 app = FastAPI(
     title="FastAPI Middlewares Example", description="Example app showing all middlewares in action", version="1.0.0"
 )
 
-# Add all essential middlewares
 add_essentials(
     app,
     cors_origins=["http://localhost:3000", "http://localhost:5173"],

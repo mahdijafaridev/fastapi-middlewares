@@ -23,8 +23,10 @@ classifiers = [
 ]
 license = {text = "MIT"}
 dependencies = [
-    "fastapi[standard]>=0.1.17",
+    "fastapi>=0.121.0",
+    "httpx>=0.28.1",
     "starlette>=0.50.0",
+    "uvicorn>=0.38.0",
 ]
 requires-python = ">= 3.10"
 
