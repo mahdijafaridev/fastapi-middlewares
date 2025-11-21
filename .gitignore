@@ -18,3 +18,4 @@ uv.lock
 *.whl
 .idea
 .coverage
+.pypirc

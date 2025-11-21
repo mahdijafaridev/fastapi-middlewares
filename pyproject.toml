@@ -23,8 +23,10 @@ classifiers = [
 ]
 license = {text = "MIT"}
 dependencies = [
+    "build>=1.3.0",
     "fastapi>=0.121.0",
     "starlette>=0.50.0",
+    "twine>=6.2.0",
 ]
 requires-python = ">= 3.10"
 
