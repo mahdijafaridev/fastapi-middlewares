@@ -6,7 +6,7 @@ Thank you for considering contributing to FastAPI Middlewares!
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/fastapi-middlewares.git
+   git clone https://github.com/mahdijafaridev/fastapi-middlewares.git
    cd fastapi-middlewares
    ```
 
