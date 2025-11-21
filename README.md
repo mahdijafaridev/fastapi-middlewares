@@ -1,14 +1,22 @@
 # FastAPI Middlewares
 
-Essential middlewares for FastAPI applications. Simple, fast, and production-ready.
+Essential middlewares for FastAPI applications.
+
+
+[![CI](https://github.com/mahdijafaridev/fastapi-middlewares/actions/workflows/ci.yml/badge.svg)](https://github.com/mahdijafaridev/fastapi-middlewares/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/mahdijafaridev/fastapi-middlewares/branch/main/graph/badge.svg)](https://codecov.io/gh/mahdijafaridev/fastapi-middlewares)
+[![PyPI version](https://badge.fury.io/py/fastapi-middlewares.svg)](https://badge.fury.io/py/fastapi-middlewares)
+[![Python Versions](https://img.shields.io/pypi/pyversions/fastapi-middlewares.svg)](https://pypi.org/project/fastapi-middlewares/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
 
-- ✅ **Pure ASGI** - 50% faster than BaseHTTPMiddleware
-- ✅ **Zero extra dependencies** - Only FastAPI/Starlette required
-- ✅ **Type hints** - Full typing support
-- ✅ **Production tested** - Battle-tested patterns
-- ✅ **Easy to use** - One-line setup
+- 🔍 **Request ID Tracking** - Unique IDs for request tracing
+- ⏱️ **Request Timing** - Measure response times
+- 🔒 **Security Headers** - OWASP-compliant security headers
+- 📝 **Structured Logging** - JSON-formatted request/response logs
+- 🚨 **Error Handling** - Graceful error responses with tracebacks
+- ⚡ **Easy Setup** - One-line configuration with sensible defaults
 
 ## Installation
 
@@ -309,45 +317,22 @@ curl -I http://localhost:8000/
 # X-Frame-Options: DENY
 ```
 
-## Performance
-
-All middlewares use **Pure ASGI** for maximum performance.
-
-| Middleware | Overhead | Notes |
-|-----------|----------|-------|
-| Request ID | < 1ms | UUID generation |
-| Timing | < 0.5ms | perf_counter |
-| Security Headers | < 0.1ms | Header manipulation |
-| Logging | 1-3ms | I/O dependent |
-| Error Handling | < 1ms | Exception path only |
-| **Total** | **< 6ms** | Per request |
-
-**GZip compression:** 5-10ms overhead, but saves 80% bandwidth.
-
-### Why Pure ASGI?
-
-BaseHTTPMiddleware is convenient but has ~50% performance overhead. Our middlewares use Pure ASGI for maximum speed.
-
-**Benchmark (10,000 requests):**
-- BaseHTTPMiddleware: ~2.5s
-- Pure ASGI: ~1.2s
-- **52% faster!**
 
 ## Development
 
 ```bash
 # Clone the repo
-git clone https://github.com/mahdijafaridev/fastapi-middlewares
+git clone https://github.com/mahdijafaridev/fastapi-middlewares.git
 cd fastapi-middlewares
 
 # Install dependencies
 uv sync
 
 # Run tests
-pytest
+pytest -v
 
-# Run tests with coverage
-pytest --cov=src/middlewares --cov-report=html
+# Run with coverage
+pytest --cov=middlewares --cov-report=html
 
 # Run example app
 python examples/example_app.py
@@ -355,24 +340,19 @@ python examples/example_app.py
 
 ## Contributing
 
-Contributions are welcome! Please:
-
-1. Fork the repo
-2. Create a feature branch
-3. Add tests for new features
-4. Ensure tests pass
-5. Submit a pull request
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Credits
 
-Inspired by:
-- Express.js middleware ecosystem
-- Django middleware patterns
-- Starlette ASGI implementation
+Built with ❤️ for the FastAPI community.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## Links
 

@@ -23,7 +23,7 @@ class RequestIDMiddleware:
         self.header_name = header_name.lower().encode()
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] == "http":
+        if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
 
@@ -263,3 +263,47 @@ class ErrorHandlingMiddleware:
             )
 
             await response(scope, receive, send)
+
+
+def add_cors(app, allow_origins=None, allow_methods=None, allow_headers=None):
+    """Add CORS middleware with sensible defaults."""
+    from starlette.middleware.cors import CORSMiddleware
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allow_origins or ["*"],
+        allow_credentials=True,
+        allow_methods=allow_methods or ["*"],
+        allow_headers=allow_headers or ["*"],
+    )
+
+
+def add_gzip(app, minimum_size=1000):
+    """Add gzip compression middleware."""
+    from starlette.middleware.gzip import GZipMiddleware
+
+    app.add_middleware(GZipMiddleware, minimum_size=minimum_size)
+
+
+def add_essentials(
+    app,
+    cors_origins=None,
+    enable_gzip=True,
+    include_traceback=False,
+    logger_name="fastapi_middlewares",
+):
+    """
+    Add all essential middlewares in the correct order.
+    Order matters! Add from outermost to innermost.
+    """
+    app.add_middleware(ErrorHandlingMiddleware, include_traceback=include_traceback)
+    app.add_middleware(LoggingMiddleware, logger_name=logger_name)
+    app.add_middleware(RequestTimingMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(RequestIDMiddleware)
+
+    if cors_origins:
+        add_cors(app, allow_origins=cors_origins)
+
+    if enable_gzip:
+        add_gzip(app)

@@ -82,7 +82,6 @@ class TestRequestTimingMiddleware:
         assert response.status_code == 200
         assert "x-process-time" in response.headers
 
-        # Check that timing is a valid float
         timing = float(response.headers["x-process-time"])
         assert timing >= 0
 
@@ -126,7 +125,6 @@ class TestSecurityHeadersMiddleware:
 
         response = client.get("/test")
 
-        # Server header should be removed
         assert "server" not in response.headers
 
     def test_custom_headers(self, app, client):
@@ -153,13 +151,16 @@ class TestLoggingMiddleware:
         def test_route():
             return {"status": "ok"}
 
-        with caplog.at_level(logging.INFO):
+        with caplog.at_level(logging.INFO, logger="test_logger"):
             response = client.get("/test?param=value")
 
         assert response.status_code == 200
 
-        # Check logs
-        log_messages = [record.message for record in caplog.records]
+        log_messages = [
+            record.message
+            for record in caplog.records
+            if record.name == "test_logger"
+        ]
         assert any("Request started" in msg for msg in log_messages)
         assert any("Request completed" in msg for msg in log_messages)
 
@@ -170,13 +171,16 @@ class TestLoggingMiddleware:
         def health_route():
             return {"status": "ok"}
 
-        with caplog.at_level(logging.INFO):
+        with caplog.at_level(logging.INFO, logger="test_logger"):
             response = client.get("/health")
 
         assert response.status_code == 200
 
-        # Should not log /health
-        log_messages = [record.message for record in caplog.records]
+        log_messages = [
+            record.message
+            for record in caplog.records
+            if record.name == "test_logger"
+        ]
         assert not any("/health" in msg for msg in log_messages)
 
 
@@ -255,17 +259,19 @@ class TestHelperFunctions:
         def test_route():
             return {"status": "ok"}
 
-        with caplog.at_level(logging.INFO):
+        with caplog.at_level(logging.INFO, logger="fastapi_middlewares"):
             response = client.get("/test")
 
-        # Check all middleware features are present
         assert response.status_code == 200
         assert "x-request-id" in response.headers
         assert "x-process-time" in response.headers
         assert "x-content-type-options" in response.headers
 
-        # Check logging happened
-        log_messages = [record.message for record in caplog.records]
+        log_messages = [
+            record.message
+            for record in caplog.records
+            if record.name == "fastapi_middlewares"
+        ]
         assert any("Request started" in msg for msg in log_messages)
 
 
@@ -273,7 +279,6 @@ class TestMiddlewareIntegration:
     """Test all middlewares working together."""
 
     def test_all_middlewares_together(self, app, client, caplog):
-        # Add all middlewares (order matters!)
         app.add_middleware(ErrorHandlingMiddleware)
         app.add_middleware(LoggingMiddleware, logger_name="test_logger")
         app.add_middleware(RequestTimingMiddleware)
@@ -284,17 +289,19 @@ class TestMiddlewareIntegration:
         def test_route():
             return {"status": "ok"}
 
-        with caplog.at_level(logging.INFO):
+        with caplog.at_level(logging.INFO, logger="test_logger"):
             response = client.get("/test")
 
-        # Check all middleware features are present
         assert response.status_code == 200
         assert "x-request-id" in response.headers
         assert "x-process-time" in response.headers
         assert "x-content-type-options" in response.headers
 
-        # Check logging happened
-        log_messages = [record.message for record in caplog.records]
+        log_messages = [
+            record.message
+            for record in caplog.records
+            if record.name == "test_logger"
+        ]
         assert any("Request started" in msg for msg in log_messages)
         assert any("Request completed" in msg for msg in log_messages)
 
@@ -312,15 +319,12 @@ class TestMiddlewareIntegration:
         with caplog.at_level(logging.ERROR):
             response = client.get("/error")
 
-        # Error should be caught and formatted
         assert response.status_code == 500
         data = response.json()
         assert data["error"] == "ValueError"
 
-        # Should still have request ID and timing
         assert "x-request-id" in response.headers
         assert "x-process-time" in response.headers
 
-        # Error should be logged
         log_messages = [record.message for record in caplog.records]
         assert any("failed" in msg.lower() for msg in log_messages)

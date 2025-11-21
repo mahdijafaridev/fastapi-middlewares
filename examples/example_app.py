@@ -14,7 +14,7 @@ app = FastAPI(
 add_essentials(
     app,
     cors_origins=["http://localhost:3000", "http://localhost:5173"],
-    include_traceback=True,  # Set False in production
+    include_traceback=True,  # Set to False in production
     logger_name="example_app",
 )
 
