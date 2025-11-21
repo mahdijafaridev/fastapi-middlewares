@@ -12,7 +12,7 @@ Thank you for considering contributing to FastAPI Middlewares!
 
 2. **Install dependencies with uv**
    ```bash
-   uv sync
+   uv sync --dev
    ```
 
 3. **Activate virtual environment**
@@ -24,28 +24,51 @@ Thank you for considering contributing to FastAPI Middlewares!
 
 ```bash
 # Run all tests
-pytest -v
+uv run pytest -v
 
 # Run with coverage
-pytest --cov=middlewares --cov-report=html
+uv run pytest --cov=src/middlewares --cov-report=html --cov-report=term
 
 # Run specific test file
-pytest tests/test_middlewares.py -v
+uv run pytest tests/test_middlewares.py -v
+
+# Run tests with verbose output
+uv run pytest -vv
 ```
 
-## Code Style
+## Code Quality Checks
 
-We follow PEP 8 and use automated formatters:
+We follow PEP 8 and use automated formatters. Run these before committing:
 
 ```bash
-# Format code
-ruff format src/ tests/
+# Fix all linting issues automatically
+uv run ruff check --fix src/ tests/
 
-# Check linting
-ruff check src/ tests/
+# Format code
+uv run ruff format src/ tests/
+
+# Check linting (without fixing)
+uv run ruff check src/ tests/
+
+# Check formatting (without fixing)
+uv run ruff format --check src/ tests/
 
 # Type checking
-mypy src/
+uv run mypy src/ --ignore-missing-imports
+```
+
+## Pre-commit Checklist
+
+Before pushing your changes, run all checks:
+
+```bash
+# Run all checks at once
+uv run ruff check --fix src/ tests/
+uv run ruff format src/ tests/
+uv run mypy src/ --ignore-missing-imports
+uv run pytest -v --cov=src/middlewares
+
+# Or create this as a pre-commit script
 ```
 
 ## Making Changes
@@ -60,23 +83,29 @@ mypy src/
    - Add tests for new functionality
    - Update documentation as needed
 
-3. **Ensure tests pass**
+3. **Run quality checks**
    ```bash
-   pytest -v
+   # Auto-fix linting and formatting
+   uv run ruff check --fix src/ tests/
+   uv run ruff format src/ tests/
+   
+   # Run tests
+   uv run pytest -v
    ```
 
 4. **Commit your changes**
    ```bash
    git add .
-   git commit -m "Add: brief description of changes"
+   git commit -m "feat: brief description of changes"
    ```
    
-   Follow conventional commits:
+   Follow [Conventional Commits](https://www.conventionalcommits.org/):
    - `feat:` for new features
    - `fix:` for bug fixes
    - `docs:` for documentation
    - `test:` for tests
    - `refactor:` for refactoring
+   - `chore:` for maintenance tasks
 
 5. **Push and create a PR**
    ```bash
@@ -90,6 +119,7 @@ mypy src/
 - **Tests**: Include tests for new features or bug fixes
 - **Documentation**: Update README.md if adding features
 - **Small PRs**: Keep changes focused and atomic
+- **CI Checks**: All checks must pass before merging
 
 ## Adding a New Middleware
 
@@ -97,7 +127,53 @@ mypy src/
 2. Add comprehensive tests in `tests/test_middlewares.py`
 3. Export it in `src/middlewares/__init__.py`
 4. Document it in `README.md` with examples
-5. Add usage example in `examples/`
+5. Add usage example in `examples/example_app.py`
+6. Update `CHANGELOG.md` with the new feature
+
+Example middleware structure:
+
+```python
+class YourMiddleware:
+    """
+    Brief description of what this middleware does.
+    """
+
+    def __init__(self, app: ASGIApp, option: str = "default") -> None:
+        self.app = app
+        self.option = option
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        # Your middleware logic here
+        
+        await self.app(scope, receive, send)
+```
+
+## Testing Guidelines
+
+- Write tests for all new features
+- Aim for 100% code coverage
+- Test edge cases and error conditions
+- Use descriptive test names
+- Group related tests in classes
+
+```python
+class TestYourMiddleware:
+    """Test YourMiddleware."""
+
+    def test_basic_functionality(self, app, client):
+        app.add_middleware(YourMiddleware)
+        
+        @app.get("/test")
+        def test_route():
+            return {"status": "ok"}
+        
+        response = client.get("/test")
+        assert response.status_code == 200
+```
 
 ## Code Review Process
 
@@ -105,22 +181,69 @@ mypy src/
 2. CI must pass (tests, linting, type checking)
 3. Maintain test coverage above 90%
 4. Address reviewer feedback promptly
+5. Keep PRs small and focused
 
 ## Reporting Issues
 
 When reporting bugs, include:
-- Python version
-- FastAPI version
+- Python version (`python --version`)
+- FastAPI version (`pip show fastapi`)
 - Minimal reproducible example
 - Expected vs actual behavior
-- Error messages/tracebacks
+- Full error messages/tracebacks
+- Operating system
+
+Use this template:
+
+```markdown
+**Environment:**
+- Python version: 
+- FastAPI version:
+- OS:
+
+**Bug Description:**
+Clear description of the issue
+
+**Steps to Reproduce:**
+1. 
+2. 
+3. 
+
+**Expected Behavior:**
+What you expected to happen
+
+**Actual Behavior:**
+What actually happened
+
+**Code Example:**
+```python
+# Minimal reproducible example
+```
+
+**Error Output:**
+```
+# Full error traceback
+```
+```
+
+## Development Tips
+
+- Use `uv run` prefix for all commands to ensure correct environment
+- Run tests frequently during development
+- Check test coverage: `uv run pytest --cov=src/middlewares --cov-report=html` then open `htmlcov/index.html`
+- Use type hints for better IDE support and catch errors early
+- Write docstrings for all public APIs
 
 ## Questions?
 
-- Open a GitHub Discussion
-- Check existing issues
-- Read the documentation
+- **GitHub Discussions**: For general questions and ideas
+- **GitHub Issues**: For bug reports and feature requests
+- **Documentation**: Check README.md and docs/
 
 ## License
 
 By contributing, you agree that your contributions will be licensed under the MIT License.
+
+## Acknowledgments
+
+Thank you for helping make FastAPI Middlewares better! 🎉
