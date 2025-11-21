@@ -154,7 +154,7 @@ class LoggingMiddleware:
     ) -> None:
         self.app = app
         self.logger = logging.getLogger(logger_name)
-        self.skip_paths = skip_paths or ['/health', '/metrics']
+        self.skip_paths = skip_paths or ["/health", "/metrics"]
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -228,7 +228,6 @@ class ErrorHandlingMiddleware:
         try:
             await self.app(scope, receive, send)
         except Exception as exc:
-
             request_id = scope.get("request_id", "N/A")
 
             exc_type = type(exc)

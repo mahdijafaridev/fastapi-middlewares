@@ -156,11 +156,7 @@ class TestLoggingMiddleware:
 
         assert response.status_code == 200
 
-        log_messages = [
-            record.message
-            for record in caplog.records
-            if record.name == "test_logger"
-        ]
+        log_messages = [record.message for record in caplog.records if record.name == "test_logger"]
         assert any("Request started" in msg for msg in log_messages)
         assert any("Request completed" in msg for msg in log_messages)
 
@@ -176,11 +172,7 @@ class TestLoggingMiddleware:
 
         assert response.status_code == 200
 
-        log_messages = [
-            record.message
-            for record in caplog.records
-            if record.name == "test_logger"
-        ]
+        log_messages = [record.message for record in caplog.records if record.name == "test_logger"]
         assert not any("/health" in msg for msg in log_messages)
 
 
@@ -267,11 +259,7 @@ class TestHelperFunctions:
         assert "x-process-time" in response.headers
         assert "x-content-type-options" in response.headers
 
-        log_messages = [
-            record.message
-            for record in caplog.records
-            if record.name == "fastapi_middlewares"
-        ]
+        log_messages = [record.message for record in caplog.records if record.name == "fastapi_middlewares"]
         assert any("Request started" in msg for msg in log_messages)
 
 
@@ -297,11 +285,7 @@ class TestMiddlewareIntegration:
         assert "x-process-time" in response.headers
         assert "x-content-type-options" in response.headers
 
-        log_messages = [
-            record.message
-            for record in caplog.records
-            if record.name == "test_logger"
-        ]
+        log_messages = [record.message for record in caplog.records if record.name == "test_logger"]
         assert any("Request started" in msg for msg in log_messages)
         assert any("Request completed" in msg for msg in log_messages)
 
