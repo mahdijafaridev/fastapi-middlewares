@@ -1,7 +1,7 @@
 [project]
 name = "middlewares"
 version = "0.1.0"
-description = "Essential middlewares for FastAPI - Simple, fast, production-ready"
+description = "Essential middlewares for FastAPI"
 readme = "README.md"
 authors = [
   {name = "Mahdi Jafari", email = "mahdijafaridev@gmail.com"}
@@ -24,20 +24,19 @@ classifiers = [
 license = {text = "MIT"}
 dependencies = [
     "fastapi>=0.121.0",
-    "httpx>=0.28.1",
     "starlette>=0.50.0",
-    "uvicorn>=0.38.0",
 ]
 requires-python = ">= 3.10"
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
-    "coverage",
-    "pytest",
-    "pytest-asyncio",
-    "httpx",
-    "ruff",
-    "uvicorn[standard]",
+    "pytest>=9.0.1",
+    "pytest-cov>=6.0.0",
+    "pytest-asyncio>=0.25.0",
+    "httpx>=0.28.1",
+    "ruff>=0.9.0",
+    "mypy>=1.13.0",
+    "uvicorn[standard]>=0.38.0",
 ]
 
 [project.urls]
@@ -70,9 +69,12 @@ select = [
     "UP",  # pyupgrade
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
 [tool.coverage.run]
 source = ["src"]
-omit = ["*/tests/*"]
+omit = ["*/tests/*", "*/__pycache__/*"]
 
 [tool.coverage.report]
 exclude_lines = [
@@ -81,9 +83,12 @@ exclude_lines = [
     "raise AssertionError",
     "raise NotImplementedError",
     "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
 ]
 
-[tool.uv]
-dev-dependencies = [
-    "pytest>=9.0.1",
-]
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true

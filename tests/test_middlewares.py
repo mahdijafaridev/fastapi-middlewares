@@ -1,7 +1,9 @@
 import logging
+
 import pytest
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
+
 from middlewares import (
     ErrorHandlingMiddleware,
     LoggingMiddleware,
