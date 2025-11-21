@@ -1,5 +1,5 @@
 [project]
-name = "middlewares"
+name = "fastapi-middlewares"
 version = "0.1.0"
 description = "Essential middlewares for FastAPI"
 readme = "README.md"
