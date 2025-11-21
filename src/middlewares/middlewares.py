@@ -6,6 +6,7 @@ import json
 import logging
 import time
 import uuid
+from typing import Awaitable, Callable
 
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
@@ -68,7 +69,7 @@ class RequestTimingMiddleware:
             if message["type"] == "http.response.start":
                 process_time = time.perf_counter() - start_time
                 headers = list(message.get("headers", []))
-                headers.append([self.header_name, f"{process_time:.4f}".encode()])
+                headers.append((self.header_name, f"{process_time:.4f}".encode()))
                 message["headers"] = headers
             await send(message)
 
@@ -83,7 +84,7 @@ class SecurityHeadersMiddleware:
     def __init__(
         self,
         app: ASGIApp,
-        headers: dict = None,
+        headers: dict[str, str] | None = None,
         hsts_max_age: int = 31536000,
     ) -> None:
         self.app = app
@@ -113,11 +114,11 @@ class SecurityHeadersMiddleware:
                 headers = list(message.get("headers", []))
 
                 for header_name, header_value in self.headers.items():
-                    headers.append([header_name.lower().encode(), header_value.encode()])
+                    headers.append((header_name.lower().encode(), header_value.encode()))
 
                 if self._is_https(scope):
                     hsts_value = f"max-age={self.hsts_max_age}; includeSubDomains"
-                    headers.append([b"strict-transport-security", hsts_value.encode()])
+                    headers.append((b"strict-transport-security", hsts_value.encode()))
 
                 headers = [h for h in headers if h[0] not in [b"server", b"x-powered-by"]]
 
@@ -129,12 +130,10 @@ class SecurityHeadersMiddleware:
 
     @staticmethod
     def _is_https(scope: Scope) -> bool:
-        """
-        Determine if the request is over HTTPS.
-        """
-        scheme = scope.get("scheme", "http")
+        scheme: str = scope.get("scheme", "http")
+        headers: list[tuple[bytes, bytes]] = scope.get("headers", [])
 
-        for header_name, header_value in scope.get("headers", []):
+        for header_name, header_value in headers:
             if header_name.lower() == b"x-forwarded-proto":
                 return header_value.decode().lower() == "https"
 
@@ -150,7 +149,7 @@ class LoggingMiddleware:
         self,
         app: ASGIApp,
         logger_name: str = "fastapi_middlewares",
-        skip_paths: list = None,
+        skip_paths: list[str] | None = None,
     ) -> None:
         self.app = app
         self.logger = logging.getLogger(logger_name)
@@ -214,7 +213,7 @@ class ErrorHandlingMiddleware:
         self,
         app: ASGIApp,
         include_traceback: bool = False,
-        custom_handlers: dict = None,
+        custom_handlers: dict[type, Callable[[Scope, Exception], Awaitable[JSONResponse]]] | None = None,
     ) -> None:
         self.app = app
         self.include_traceback = include_traceback
