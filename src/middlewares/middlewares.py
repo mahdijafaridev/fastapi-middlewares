@@ -6,7 +6,7 @@ import json
 import logging
 import time
 import uuid
-from typing import Awaitable, Callable
+from collections.abc import Awaitable, Callable
 
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
