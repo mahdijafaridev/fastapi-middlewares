@@ -4,8 +4,7 @@ Essential middlewares for FastAPI applications.
 
 
 [![CI](https://github.com/mahdijafaridev/fastapi-middlewares/actions/workflows/ci.yml/badge.svg)](https://github.com/mahdijafaridev/fastapi-middlewares/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/mahdijafaridev/fastapi-middlewares/branch/main/graph/badge.svg)](https://codecov.io/gh/mahdijafaridev/fastapi-middlewares)
-[![PyPI version](https://badge.fury.io/py/fastapi-middlewares.svg)](https://badge.fury.io/py/fastapi-middlewares)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/fastapi-middlewares?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/fastapi-middlewares)[![PyPI version](https://badge.fury.io/py/fastapi-middlewares.svg)](https://badge.fury.io/py/fastapi-middlewares)
 [![Python Versions](https://img.shields.io/pypi/pyversions/fastapi-middlewares.svg)](https://pypi.org/project/fastapi-middlewares/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
