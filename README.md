@@ -100,7 +100,7 @@ X-Process-Time: 0.0245
 
 ### 3. Security Headers Middleware
 
-Adds security headers to protect against common attacks.
+Adds OWASP-recommended security headers to protect against common attacks.
 
 ```python
 from middlewares import SecurityHeadersMiddleware
@@ -109,27 +109,34 @@ app.add_middleware(SecurityHeadersMiddleware)
 ```
 
 **Default Headers:**
-- `X-Content-Type-Options: nosniff`
-- `X-Frame-Options: DENY`
-- `X-XSS-Protection: 0`
-- `Referrer-Policy: strict-origin-when-cross-origin`
-- `Content-Security-Policy: ...`
-- `Strict-Transport-Security: ...` (HTTPS only)
+- `Cache-Control: no-store, max-age=0` - Prevents caching of sensitive data
+- `Content-Security-Policy: frame-ancestors 'none'` - Prevents clickjacking
+- `X-Content-Type-Options: nosniff` - Prevents MIME-sniffing attacks
+- `X-Frame-Options: DENY` - Additional clickjacking protection
+- `Referrer-Policy: no-referrer` - Prevents URL leakage
+- `Permissions-Policy: geolocation=(), microphone=(), camera=()` - Disables unnecessary browser features
+- `Strict-Transport-Security: max-age=31536000; includeSubDomains` - HTTPS enforcement (added automatically for HTTPS connections)
+
+The middleware also removes server identification headers (`Server`, `X-Powered-By`) to reduce information disclosure.
 
 **Custom Headers:**
 ```python
 app.add_middleware(
     SecurityHeadersMiddleware,
     headers={
-        "X-Frame-Options": "SAMEORIGIN",
-        "X-Custom-Header": "custom-value"
-    }
+        "Cache-Control": "no-cache",
+        "Content-Security-Policy": "default-src 'self'",
+        "Custom-Header": "custom-value"
+    },
+    hsts_max_age=63072000  # 2 years
 )
 ```
 
 **Options:**
-- `headers`: Dict of custom headers
-- `hsts_max_age`: HSTS max age in seconds (default: 31536000)
+- `headers`: Dict of custom security headers (overrides defaults)
+- `hsts_max_age`: HSTS max-age in seconds (default: 31536000 = 1 year)
+
+**Note:** Default headers are compatible with FastAPI's Swagger UI and ReDoc. The middleware respects headers already set by your application routes.
 
 ### 4. Logging Middleware
 
@@ -314,8 +321,10 @@ curl -I http://localhost:8000/
 # X-Process-Time: 0.0245
 # X-Content-Type-Options: nosniff
 # X-Frame-Options: DENY
+# Cache-Control: no-store, max-age=0
+# Content-Security-Policy: frame-ancestors 'none'
+# Referrer-Policy: no-referrer
 ```
-
 
 ## Development
 

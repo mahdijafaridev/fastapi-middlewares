@@ -88,21 +88,17 @@ class SecurityHeadersMiddleware:
         hsts_max_age: int = 31536000,
     ) -> None:
         self.app = app
+        self.hsts_max_age = hsts_max_age
+
         self.headers = headers or {
+            # These are default security headers recommended by OWASP: https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html#security-headers
+            "Cache-Control": "no-store, max-age=0",
+            "Content-Security-Policy": "frame-ancestors 'none'",
             "X-Content-Type-Options": "nosniff",
             "X-Frame-Options": "DENY",
-            "X-XSS-Protection": "0",
-            "Referrer-Policy": "strict-origin-when-cross-origin",
-            "Content-Security-Policy": (
-                "default-src 'self'; "
-                "script-src 'self' 'unsafe-inline'; "
-                "style-src 'self' 'unsafe-inline'; "
-                "img-src 'self' data: https:; "
-                "font-src 'self' data:; "
-                "connect-src 'self' ws: wss: https:;"
-            ),
+            "Referrer-Policy": "no-referrer",
+            "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
         }
-        self.hsts_max_age = hsts_max_age
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -113,14 +109,18 @@ class SecurityHeadersMiddleware:
             if message["type"] == "http.response.start":
                 headers = list(message.get("headers", []))
 
-                for header_name, header_value in self.headers.items():
-                    headers.append((header_name.lower().encode(), header_value.encode()))
+                headers = [h for h in headers if h[0] not in [b"server", b"x-powered-by"]]
 
-                if self._is_https(scope):
+                existing_headers = {h[0].lower() for h in headers}
+
+                for header_name, header_value in self.headers.items():
+                    header_name_lower = header_name.lower().encode()
+                    if header_name_lower not in existing_headers:
+                        headers.append((header_name_lower, header_value.encode()))
+
+                if self._is_https(scope) and b"strict-transport-security" not in existing_headers:
                     hsts_value = f"max-age={self.hsts_max_age}; includeSubDomains"
                     headers.append((b"strict-transport-security", hsts_value.encode()))
-
-                headers = [h for h in headers if h[0] not in [b"server", b"x-powered-by"]]
 
                 message["headers"] = headers
 
