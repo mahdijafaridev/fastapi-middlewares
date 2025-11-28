@@ -432,7 +432,7 @@ wheels = [
 
 [[package]]
 name = "fastapi-middlewares"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "build" },

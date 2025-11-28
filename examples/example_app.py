@@ -33,6 +33,8 @@ def root(request: Request):
             "error": "/error",
             "not_found": "/not-found",
             "slow": "/slow",
+            "large": "/large",
+            "docs": "/docs",
         },
     }
 
@@ -106,6 +108,7 @@ if __name__ == "__main__":
     print("FastAPI Middlewares Example App")
     print("=" * 60)
     print("\nRunning on: http://localhost:8000")
+    print("Documentation: http://localhost:8000/docs")
     print("\nTry these commands:")
     print("  curl http://localhost:8000/")
     print("  curl -I http://localhost:8000/users/1")
@@ -113,10 +116,15 @@ if __name__ == "__main__":
     print("  curl http://localhost:8000/slow")
     print("  curl -H 'Accept-Encoding: gzip' http://localhost:8000/large")
     print("\nCheck the response headers for:")
-    print("  - X-Request-ID")
-    print("  - X-Process-Time")
-    print("  - X-Content-Type-Options")
-    print("  - X-Frame-Options")
+    print("  - X-Request-ID: Unique request identifier")
+    print("  - X-Process-Time: Request processing time")
+    print("  - Cache-Control: no-store, max-age=0")
+    print("  - Content-Security-Policy: frame-ancestors 'none'")
+    print("  - X-Content-Type-Options: nosniff")
+    print("  - X-Frame-Options: DENY")
+    print("  - Referrer-Policy: no-referrer")
+    print("  - Permissions-Policy: geolocation=(), microphone=(), camera=()")
+    print("\nNote: Server and X-Powered-By headers are automatically removed")
     print("=" * 60 + "\n")
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
