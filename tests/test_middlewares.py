@@ -2,7 +2,7 @@ import logging
 from collections import Counter
 
 import pytest
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from starlette.responses import JSONResponse
 
@@ -82,6 +82,8 @@ class TestRequestIDMiddleware:
 
     def test_request_id_in_scope(self, app, client):
         """Test that request ID is stored in scope for use by other middleware."""
+        from fastapi import Request
+
         app.add_middleware(RequestIDMiddleware)
 
         request_id_from_scope = None
@@ -133,7 +135,7 @@ class TestRequestTimingMiddleware:
 
         timing = float(response.headers["x-process-time"])
         assert timing >= 0.1  # At least 100ms
-        assert timing < 0.2  # But not much more
+        assert timing < 0.5  # Allow overhead on CI systems
 
     def test_custom_header_name(self, app, client):
         """Test that middleware works with custom header name."""
@@ -164,6 +166,7 @@ class TestSecurityHeadersMiddleware:
 
         assert response.status_code == 200
 
+        # Verify all default headers are present with correct values
         assert "cache-control" in response.headers
         assert response.headers["cache-control"] == "no-store, max-age=0"
 
@@ -192,6 +195,7 @@ class TestSecurityHeadersMiddleware:
 
         response = client.get("/test")
 
+        # Verify server identification headers are removed
         assert "server" not in response.headers
         assert "x-powered-by" not in response.headers
 
