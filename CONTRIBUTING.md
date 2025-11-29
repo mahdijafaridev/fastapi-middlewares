@@ -1,136 +1,105 @@
 # Contributing to FastAPI Middlewares
 
-Thank you for considering contributing to FastAPI Middlewares! 
+Thank you for considering contributing to FastAPI Middlewares!
 
-## Development Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/mahdijafaridev/fastapi-middlewares.git
-   cd fastapi-middlewares
-   ```
-
-2. **Install dependencies with uv**
-   ```bash
-   uv sync --dev
-   ```
-
-3. **Activate virtual environment**
-   ```bash
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
-
-## Running Tests
+## Quick Start
 
 ```bash
-# Run all tests
-uv run pytest -v
+# Clone and setup
+git clone https://github.com/mahdijafaridev/fastapi-middlewares.git
+cd fastapi-middlewares
+make install
 
-# Run with coverage
-uv run pytest --cov=src/middlewares --cov-report=html --cov-report=term
-
-# Run specific test file
-uv run pytest tests/test_middlewares.py -v
-
-# Run tests with verbose output
-uv run pytest -vv
+# See all available commands
+make help
 ```
 
-## Code Quality Checks
-
-We follow PEP 8 and use automated formatters. Run these before committing:
+## Development Workflow
 
 ```bash
-# Fix all linting issues automatically
-uv run ruff check --fix src/ tests/
+# Before committing
+make check  # Runs lint-fix, format, type-check, and tests
 
-# Format code
-uv run ruff format src/ tests/
+# Run tests only
+make test
 
-# Check linting (without fixing)
-uv run ruff check src/ tests/
+# Run tests with coverage report
+make test-cov
 
-# Check formatting (without fixing)
-uv run ruff format --check src/ tests/
-
-# Type checking
-uv run mypy src/ --ignore-missing-imports
-```
-
-## Pre-commit Checklist
-
-Before pushing your changes, run all checks:
-
-```bash
-# Run all checks at once
-uv run ruff check --fix src/ tests/
-uv run ruff format src/ tests/
-uv run mypy src/ --ignore-missing-imports
-uv run pytest -v --cov=src/middlewares
-
-# Or create this as a pre-commit script
+# Run the example app
+make dev
 ```
 
 ## Making Changes
 
-1. **Create a new branch**
+1. **Create a branch**
    ```bash
    git checkout -b feature/your-feature-name
    ```
 
 2. **Make your changes**
-   - Write clear, concise code
-   - Add tests for new functionality
-   - Update documentation as needed
+   - Write clear code
+   - Add tests for new features
+   - Update docs if needed
 
-3. **Run quality checks**
+3. **Run checks**
    ```bash
-   # Auto-fix linting and formatting
-   uv run ruff check --fix src/ tests/
-   uv run ruff format src/ tests/
-   
-   # Run tests
-   uv run pytest -v
+   make check
    ```
 
-4. **Commit your changes**
+4. **Commit**
    ```bash
-   git add .
-   git commit -m "feat: brief description of changes"
+   git commit -m "feat: brief description"
    ```
    
-   Follow [Conventional Commits](https://www.conventionalcommits.org/):
-   - `feat:` for new features
-   - `fix:` for bug fixes
-   - `docs:` for documentation
-   - `test:` for tests
-   - `refactor:` for refactoring
-   - `chore:` for maintenance tasks
+   Use [Conventional Commits](https://www.conventionalcommits.org/):
+   - `feat:` - new features
+   - `fix:` - bug fixes
+   - `docs:` - documentation
+   - `test:` - tests
+   - `refactor:` - code refactoring
+   - `chore:` - maintenance
 
-5. **Push and create a PR**
+5. **Push and create PR**
    ```bash
    git push origin feature/your-feature-name
    ```
 
+## Manual Commands (if needed)
+
+```bash
+# Fix linting issues
+make lint-fix
+
+# Format code
+make format
+
+# Type checking
+make type-check
+
+# Clean build artifacts
+make clean
+```
+
 ## Pull Request Guidelines
 
-- **Title**: Clear, descriptive title following conventional commits
-- **Description**: Explain what and why, not how
-- **Tests**: Include tests for new features or bug fixes
-- **Documentation**: Update README.md if adding features
-- **Small PRs**: Keep changes focused and atomic
-- **CI Checks**: All checks must pass before merging
+- Clear, descriptive title
+- Explain what and why
+- Include tests for new features
+- Update README.md if adding features
+- Keep PRs small and focused
+- All CI checks must pass
 
 ## Adding a New Middleware
 
-1. Create the middleware class in `src/middlewares/middlewares.py`
-2. Add comprehensive tests in `tests/test_middlewares.py`
-3. Export it in `src/middlewares/__init__.py`
-4. Document it in `README.md` with examples
-5. Add usage example in `examples/example_app.py`
-6. Update `CHANGELOG.md` with the new feature
+1. Create middleware in `src/middlewares/middlewares.py`
+2. Add tests in `tests/test_middlewares.py`
+3. Export in `src/middlewares/__init__.py`
+4. Document in `README.md`
+5. Add example in `examples/example_app.py`
+6. Update `CHANGELOG.md`
 
-Example middleware structure:
+Example structure:
 
 ```python
 class YourMiddleware:
@@ -154,11 +123,10 @@ class YourMiddleware:
 
 ## Testing Guidelines
 
-- Write tests for all new features
-- Aim for 100% code coverage
-- Test edge cases and error conditions
+- Test all new features
+- Aim for 100% coverage
+- Test edge cases
 - Use descriptive test names
-- Group related tests in classes
 
 ```python
 class TestYourMiddleware:
@@ -175,75 +143,24 @@ class TestYourMiddleware:
         assert response.status_code == 200
 ```
 
-## Code Review Process
-
-1. All PRs require at least one approval
-2. CI must pass (tests, linting, type checking)
-3. Maintain test coverage above 90%
-4. Address reviewer feedback promptly
-5. Keep PRs small and focused
-
 ## Reporting Issues
 
-When reporting bugs, include:
-- Python version (`python --version`)
-- FastAPI version (`pip show fastapi`)
-- Minimal reproducible example
+Include:
+- Python version
+- FastAPI version
+- Minimal code example
 - Expected vs actual behavior
-- Full error messages/tracebacks
-- Operating system
-
-Use this template:
-
-```markdown
-**Environment:**
-- Python version: 
-- FastAPI version:
-- OS:
-
-**Bug Description:**
-Clear description of the issue
-
-**Steps to Reproduce:**
-1. 
-2. 
-3. 
-
-**Expected Behavior:**
-What you expected to happen
-
-**Actual Behavior:**
-What actually happened
-
-**Code Example:**
-```python
-# Minimal reproducible example
-```
-
-**Error Output:**
-```
-# Full error traceback
-```
-```
-
-## Development Tips
-
-- Use `uv run` prefix for all commands to ensure correct environment
-- Run tests frequently during development
-- Check test coverage: `uv run pytest --cov=src/middlewares --cov-report=html` then open `htmlcov/index.html`
-- Use type hints for better IDE support and catch errors early
-- Write docstrings for all public APIs
+- Full error messages
+- OS
 
 ## Questions?
 
-- **GitHub Discussions**: For general questions and ideas
-- **GitHub Issues**: For bug reports and feature requests
-- **Documentation**: Check README.md and docs/
+- **GitHub Discussions** - General questions
+- **GitHub Issues** - Bug reports and features
+- **Documentation** - Check README.md
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
-
-## Acknowledgments
+By contributing, you agree your contributions will be licensed under the MIT License.
 
 Thank you for helping make FastAPI Middlewares better! 🎉
