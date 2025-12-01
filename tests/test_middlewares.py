@@ -4,7 +4,7 @@ from collections import Counter
 import pytest
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, StreamingResponse
 
 from middlewares import (
     ErrorHandlingMiddleware,
@@ -419,6 +419,272 @@ class TestLoggingMiddleware:
         assert len(completion_records) > 0
         # Error responses should use warning level
         assert any(record.levelname == "WARNING" for record in completion_records)
+
+
+class TestStreamingResponseLogging:
+    """Test streaming response body logging."""
+
+    def test_logs_streaming_response_body(self, app, client, caplog):
+        """Test that streaming response body is logged when enabled."""
+        app.add_middleware(
+            LoggingMiddleware,
+            logger_name="test_logger",
+            log_response_body=True,
+        )
+
+        async def generate():
+            yield b"Hello "
+            yield b"World"
+            yield b"!"
+
+        @app.get("/stream")
+        def stream_route():
+            return StreamingResponse(generate(), media_type="text/plain")
+
+        with caplog.at_level(logging.INFO, logger="test_logger"):
+            response = client.get("/stream")
+
+        assert response.status_code == 200
+        assert response.text == "Hello World!"
+
+        log_messages = [record.message for record in caplog.records if record.name == "test_logger"]
+        body_logs = [msg for msg in log_messages if "Response body:" in msg]
+
+        assert len(body_logs) == 1
+        assert "Hello World!" in body_logs[0]
+
+    def test_does_not_log_body_when_disabled(self, app, client, caplog):
+        """Test that response body is NOT logged when disabled (default)."""
+        app.add_middleware(LoggingMiddleware, logger_name="test_logger")
+
+        async def generate():
+            yield b"Hello "
+            yield b"World"
+
+        @app.get("/stream")
+        def stream_route():
+            return StreamingResponse(generate(), media_type="text/plain")
+
+        with caplog.at_level(logging.INFO, logger="test_logger"):
+            response = client.get("/stream")
+
+        assert response.status_code == 200
+
+        log_messages = [record.message for record in caplog.records if record.name == "test_logger"]
+        body_logs = [msg for msg in log_messages if "Response body:" in msg]
+
+        assert len(body_logs) == 0
+
+    def test_truncates_long_response_body(self, app, client, caplog):
+        """Test that long response bodies are truncated."""
+        app.add_middleware(
+            LoggingMiddleware,
+            logger_name="test_logger",
+            log_response_body=True,
+            max_body_length=50,
+        )
+
+        long_text = "x" * 200
+
+        async def generate():
+            chunk_size = 20
+            for i in range(0, len(long_text), chunk_size):
+                yield long_text[i : i + chunk_size].encode()
+
+        @app.get("/stream")
+        def stream_route():
+            return StreamingResponse(generate(), media_type="text/plain")
+
+        with caplog.at_level(logging.INFO, logger="test_logger"):
+            response = client.get("/stream")
+
+        assert response.status_code == 200
+        assert len(response.text) == 200
+
+        log_messages = [record.message for record in caplog.records if record.name == "test_logger"]
+        body_logs = [msg for msg in log_messages if "Response body:" in msg]
+
+        assert len(body_logs) == 1
+        assert "truncated" in body_logs[0]
+        assert "full_length" in body_logs[0]
+
+    def test_logs_json_streaming_response(self, app, client, caplog):
+        """Test logging of JSON streaming responses."""
+        app.add_middleware(
+            LoggingMiddleware,
+            logger_name="test_logger",
+            log_response_body=True,
+        )
+
+        async def generate():
+            yield b'{"items": ['
+            yield b'{"id": 1}, '
+            yield b'{"id": 2}'
+            yield b"]}"
+
+        @app.get("/stream")
+        def stream_route():
+            return StreamingResponse(generate(), media_type="application/json")
+
+        with caplog.at_level(logging.INFO, logger="test_logger"):
+            response = client.get("/stream")
+
+        assert response.status_code == 200
+
+        log_messages = [record.message for record in caplog.records if record.name == "test_logger"]
+        body_logs = [msg for msg in log_messages if "Response body:" in msg]
+
+        import json
+
+        log_json = json.loads(body_logs[0].replace("Response body: ", ""))
+        assert log_json["body"] == '{"items": [{"id": 1}, {"id": 2}]}'
+
+    def test_skips_binary_content_logging(self, app, client, caplog):
+        """Test that binary content is not logged (only size is logged)."""
+        app.add_middleware(
+            LoggingMiddleware,
+            logger_name="test_logger",
+            log_response_body=True,
+        )
+
+        binary_data = b"\x89PNG\r\n\x1a\n" + b"\x00" * 100
+
+        async def generate():
+            yield binary_data
+
+        @app.get("/stream")
+        def stream_route():
+            return StreamingResponse(generate(), media_type="image/png")
+
+        with caplog.at_level(logging.INFO, logger="test_logger"):
+            response = client.get("/stream")
+
+        assert response.status_code == 200
+
+        log_messages = [record.message for record in caplog.records if record.name == "test_logger"]
+        body_logs = [msg for msg in log_messages if "Response body" in msg]
+
+        assert len(body_logs) == 1
+        # Should log size and content type, not the actual binary data
+        assert "binary" in body_logs[0]
+        assert "image/png" in body_logs[0]
+        assert "size" in body_logs[0]
+
+    def test_logs_regular_response_body(self, app, client, caplog):
+        """Test that regular (non-streaming) responses are also logged."""
+        app.add_middleware(
+            LoggingMiddleware,
+            logger_name="test_logger",
+            log_response_body=True,
+        )
+
+        @app.get("/regular")
+        def regular_route():
+            return {"message": "Hello World"}
+
+        with caplog.at_level(logging.INFO, logger="test_logger"):
+            response = client.get("/regular")
+
+        assert response.status_code == 200
+
+        log_messages = [record.message for record in caplog.records if record.name == "test_logger"]
+        body_logs = [msg for msg in log_messages if "Response body:" in msg]
+
+        assert len(body_logs) == 1
+        assert "Hello World" in body_logs[0]
+
+    def test_handles_empty_streaming_response(self, app, client, caplog):
+        """Test handling of empty streaming responses."""
+        app.add_middleware(
+            LoggingMiddleware,
+            logger_name="test_logger",
+            log_response_body=True,
+        )
+
+        async def generate():
+            # Empty generator
+            return
+            yield
+
+        @app.get("/stream")
+        def stream_route():
+            return StreamingResponse(generate(), media_type="text/plain")
+
+        with caplog.at_level(logging.INFO, logger="test_logger"):
+            response = client.get("/stream")
+
+        assert response.status_code == 200
+
+        # Should not crash, just not log anything for body
+        log_messages = [record.message for record in caplog.records if record.name == "test_logger"]
+        # Request started and completed should still be logged
+        assert any("Request started" in msg for msg in log_messages)
+        assert any("Request completed" in msg for msg in log_messages)
+
+    def test_handles_unicode_in_streaming_response(self, app, client, caplog):
+        """Test handling of unicode characters in streaming responses."""
+        app.add_middleware(
+            LoggingMiddleware,
+            logger_name="test_logger",
+            log_response_body=True,
+        )
+
+        async def generate():
+            yield "Hello 世界 ".encode()
+            yield "🚀 Emoji".encode()
+
+        @app.get("/stream")
+        def stream_route():
+            return StreamingResponse(generate(), media_type="text/plain; charset=utf-8")
+
+        with caplog.at_level(logging.INFO, logger="test_logger"):
+            response = client.get("/stream")
+
+        assert response.status_code == 200
+
+        log_messages = [record.message for record in caplog.records if record.name == "test_logger"]
+        body_logs = [msg for msg in log_messages if "Response body:" in msg]
+
+        assert len(body_logs) == 1
+        assert "Hello 世界" in body_logs[0]
+        assert "🚀 Emoji" in body_logs[0]
+
+    def test_logs_large_ai_response(self, app, client, caplog):
+        """Test logging of large AI/LLM streaming responses (real-world use case)."""
+        app.add_middleware(
+            LoggingMiddleware,
+            logger_name="test_logger",
+            log_response_body=True,
+            max_body_length=500,  # Limit for large responses
+        )
+
+        ai_response = "This is a simulated LLM/AI/ML response. " * 50  # ~1500 chars
+
+        async def generate():
+            # Stream word by word (like LLM streaming)
+            words = ai_response.split()
+            for word in words:
+                yield (word + " ").encode()
+
+        @app.get("/ai/chat")
+        def ai_chat():
+            return StreamingResponse(generate(), media_type="text/plain")
+
+        with caplog.at_level(logging.INFO, logger="test_logger"):
+            response = client.get("/ai/chat")
+
+        assert response.status_code == 200
+        assert len(response.text) > 1000
+
+        log_messages = [record.message for record in caplog.records if record.name == "test_logger"]
+        body_logs = [msg for msg in log_messages if "Response body:" in msg]
+
+        assert len(body_logs) == 1
+        # Should be truncated
+        assert "truncated" in body_logs[0]
+        assert "full_length" in body_logs[0]
+        # But should still contain the beginning
+        assert "This is a simulated LLM/AI/ML response" in body_logs[0]
 
 
 class TestErrorHandlingMiddleware:

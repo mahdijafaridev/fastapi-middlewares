@@ -150,10 +150,14 @@ class LoggingMiddleware:
         app: ASGIApp,
         logger_name: str = "fastapi_middlewares",
         skip_paths: list[str] | None = None,
+        log_response_body: bool = False,
+        max_body_length: int = 1000,
     ) -> None:
         self.app = app
         self.logger = logging.getLogger(logger_name)
         self.skip_paths = skip_paths or ["/health", "/metrics"]
+        self.log_response_body = log_response_body
+        self.max_body_length = max_body_length
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -181,11 +185,28 @@ class LoggingMiddleware:
         }
         self.logger.info(f"Request started: {json.dumps(log_data)}")
 
+        response_chunks = []
+        content_type = None
+
         async def send_with_logging(message):
-            nonlocal status_code
+            nonlocal status_code, content_type
 
             if message["type"] == "http.response.start":
                 status_code = message.get("status", 500)
+
+                headers = message.get("headers", [])
+                for header_name, header_value in headers:
+                    if header_name.lower() == b"content-type":
+                        content_type = header_value.decode()
+                        break
+
+            if self.log_response_body and message["type"] == "http.response.body":
+                body = message.get("body", b"")
+                if body:
+                    response_chunks.append(body)
+
+                if not message.get("more_body", False):
+                    self._log_response_body(response_chunks, content_type, request_id)
 
             await send(message)
 
@@ -202,6 +223,47 @@ class LoggingMiddleware:
 
             log_level = "info" if 200 <= status_code < 400 else "warning"
             getattr(self.logger, log_level)(f"Request completed: {json.dumps(response_log)}")
+
+    def _log_response_body(self, chunks: list[bytes], content_type: str | None, request_id: str) -> None:
+        """Log the complete response body after streaming finishes."""
+        if not chunks:
+            return
+
+        if content_type and not any(t in content_type.lower() for t in ["text", "json", "xml", "javascript", "html"]):
+            body_info = {
+                "request_id": request_id,
+                "content_type": content_type,
+                "size": sum(len(c) for c in chunks),
+            }
+            self.logger.info(f"Response body (binary): {json.dumps(body_info, ensure_ascii=False)}")
+            return
+
+            return
+
+        try:
+            full_body = b"".join(chunks).decode("utf-8")
+
+            if len(full_body) > self.max_body_length:
+                truncated = full_body[: self.max_body_length]
+                body_log = {
+                    "request_id": request_id,
+                    "body": truncated,
+                    "truncated": True,
+                    "full_length": len(full_body),
+                }
+            else:
+                body_log = {
+                    "request_id": request_id,
+                    "body": full_body,
+                }
+
+            self.logger.info(f"Response body: {json.dumps(body_log, ensure_ascii=False)}")
+        except UnicodeDecodeError:
+            body_info = {
+                "request_id": request_id,
+                "size": sum(len(c) for c in chunks),
+            }
+            self.logger.info(f"Response body (decode error): {json.dumps(body_info, ensure_ascii=False)}")
 
 
 class ErrorHandlingMiddleware:
@@ -289,13 +351,20 @@ def add_essentials(
     enable_gzip=True,
     include_traceback=False,
     logger_name="fastapi_middlewares",
+    log_response_body=False,
+    max_body_length=1000,
 ):
     """
     Add all essential middlewares in the correct order.
     Order matters! Add from outermost to innermost.
     """
     app.add_middleware(ErrorHandlingMiddleware, include_traceback=include_traceback)
-    app.add_middleware(LoggingMiddleware, logger_name=logger_name)
+    app.add_middleware(
+        LoggingMiddleware,
+        logger_name=logger_name,
+        log_response_body=log_response_body,
+        max_body_length=max_body_length,
+    )
     app.add_middleware(RequestTimingMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestIDMiddleware)
