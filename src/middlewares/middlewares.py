@@ -187,9 +187,11 @@ class LoggingMiddleware:
 
         response_chunks = []
         content_type = None
+        total_size = 0
+        size_limit_exceeded = False
 
         async def send_with_logging(message):
-            nonlocal status_code, content_type
+            nonlocal status_code, content_type, total_size, size_limit_exceeded
 
             if message["type"] == "http.response.start":
                 status_code = message.get("status", 500)
@@ -202,11 +204,19 @@ class LoggingMiddleware:
 
             if self.log_response_body and message["type"] == "http.response.body":
                 body = message.get("body", b"")
-                if body:
-                    response_chunks.append(body)
+                if body and not size_limit_exceeded:
+                    if total_size + len(body) > self.max_body_length:
+                        remaining = self.max_body_length - total_size
+                        if remaining > 0:
+                            response_chunks.append(body[:remaining])
+                            total_size += remaining
+                        size_limit_exceeded = True
+                    else:
+                        response_chunks.append(body)
+                        total_size += len(body)
 
                 if not message.get("more_body", False):
-                    self._log_response_body(response_chunks, content_type, request_id)
+                    self._log_response_body(response_chunks, content_type, request_id, size_limit_exceeded)
 
             await send(message)
 
@@ -224,32 +234,40 @@ class LoggingMiddleware:
             log_level = "info" if 200 <= status_code < 400 else "warning"
             getattr(self.logger, log_level)(f"Request completed: {json.dumps(response_log)}")
 
-    def _log_response_body(self, chunks: list[bytes], content_type: str | None, request_id: str) -> None:
+    def _log_response_body(
+        self,
+        chunks: list[bytes],
+        content_type: str | None,
+        request_id: str,
+        was_truncated: bool = False,
+    ) -> None:
         """Log the complete response body after streaming finishes."""
         if not chunks:
             return
 
-        if content_type and not any(t in content_type.lower() for t in ["text", "json", "xml", "javascript", "html"]):
+        is_text_content = content_type and any(
+            t in content_type.lower() for t in ["text", "json", "xml", "javascript", "html"]
+        )
+
+        if not is_text_content:
             body_info = {
                 "request_id": request_id,
-                "content_type": content_type,
+                "content_type": content_type or "unknown",
                 "size": sum(len(c) for c in chunks),
             }
-            self.logger.info(f"Response body (binary): {json.dumps(body_info, ensure_ascii=False)}")
-            return
-
+            log_msg = "Response body (binary or unknown type)" if content_type is None else "Response body (binary)"
+            self.logger.info(f"{log_msg}: {json.dumps(body_info, ensure_ascii=False)}")
             return
 
         try:
             full_body = b"".join(chunks).decode("utf-8")
 
-            if len(full_body) > self.max_body_length:
-                truncated = full_body[: self.max_body_length]
+            if was_truncated or len(full_body) >= self.max_body_length:
                 body_log = {
                     "request_id": request_id,
-                    "body": truncated,
+                    "body": full_body,
                     "truncated": True,
-                    "full_length": len(full_body),
+                    "full_length": "exceeded max_body_length" if was_truncated else len(full_body),
                 }
             else:
                 body_log = {

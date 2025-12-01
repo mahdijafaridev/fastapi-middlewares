@@ -3,7 +3,7 @@ import logging
 import time
 import uuid
 from collections import Counter
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import Callable
 
 import pytest
 from fastapi import FastAPI, HTTPException, Request
@@ -78,12 +78,6 @@ def add_error_route(app: FastAPI, exception: Exception) -> None:
         raise exception
 
     app.get("/error")(error_handler)
-
-
-async def create_streaming_generator(chunks: list[bytes]) -> AsyncGenerator[bytes, None]:
-    """Create an async generator for streaming responses."""
-    for chunk in chunks:
-        yield chunk
 
 
 def get_logs(caplog, logger_name: str, filter_text: str = "") -> list[str]:
@@ -475,6 +469,33 @@ class TestStreamingResponseLogging:
         body_logs = get_logs(caplog, self.LOGGER_NAME, "Response body:")
         assert "Hello 世界" in body_logs[0]
         assert "🚀 Emoji" in body_logs[0]
+
+    def test_large_streaming_response_memory_limit(self, app, client, caplog):
+        """Test that large responses stop buffering at max_body_length."""
+        app.add_middleware(
+            LoggingMiddleware,
+            logger_name=self.LOGGER_NAME,
+            log_response_body=True,
+            max_body_length=100,
+        )
+
+        async def generate():
+            for _ in range(100):
+                yield b"x" * 10000  # 10KB each = 1MB total
+
+        @app.get("/huge")
+        def huge():
+            return StreamingResponse(generate(), media_type="text/plain")
+
+        with caplog.at_level(logging.INFO, logger=self.LOGGER_NAME):
+            client.get("/huge")
+
+        body_logs = get_logs(caplog, self.LOGGER_NAME, "Response body:")
+        assert len(body_logs) == 1
+        assert "truncated" in body_logs[0]
+
+        log_json = json.loads(body_logs[0].replace("Response body: ", ""))
+        assert len(log_json["body"]) == 100
 
 
 # ============================================================================

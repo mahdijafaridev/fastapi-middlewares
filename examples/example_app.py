@@ -21,7 +21,7 @@ add_essentials(
     include_traceback=True,  # Set to False in production
     logger_name="example_app",
     log_response_body=True,  # Enable response body logging
-    max_body_length=500,     # Limit logged body size. Beware of memory usage!
+    max_body_length=500,     # Limit logged body size to 500 characters. Beware: larger values increase memory usage!
 )
 
 

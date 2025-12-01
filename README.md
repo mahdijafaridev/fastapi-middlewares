@@ -3,6 +3,7 @@
 Essential middlewares for FastAPI applications.
 
 [![CI](https://github.com/mahdijafaridev/fastapi-middlewares/actions/workflows/ci.yml/badge.svg)](https://github.com/mahdijafaridev/fastapi-middlewares/actions/workflows/ci.yml)
+[![security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)
 [![PyPI Version](https://img.shields.io/pypi/v/fastapi-middlewares.svg)](https://pypi.org/project/fastapi-middlewares/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/fastapi-middlewares.svg)](https://pypi.org/project/fastapi-middlewares/)
 [![Downloads](https://static.pepy.tech/badge/fastapi-middlewares)](https://pepy.tech/project/fastapi-middlewares)
@@ -184,10 +185,10 @@ app = FastAPI()
 app.add_middleware(
     LoggingMiddleware,
     log_response_body=True,  # Enable body logging
-    max_body_length=500,     # The maximum characters to log for body (default: 1000)
+    max_body_length=500,      # The maximum number of characters (after UTF-8 decoding) to log for body (default: 1000)
 )
 
-# NOTE: Be cautious of setting max body length since it uses memory to buffer the response.
+# NOTE: Be cautious of setting a HIGH max body length, as large values use more memory to buffer the response. Small values help prevent excessive memory usage.
 
 @app.get("/ai/chat")
 async def ai_chat():
