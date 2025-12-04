@@ -74,5 +74,4 @@ Catches exceptions and returns well-formatted error responses.
 ## Support
 
 - [GitHub Issues](https://github.com/mahdijafaridev/fastapi-middlewares/issues)
-- [GitHub Discussions](https://github.com/mahdijafaridev/fastapi-middlewares/discussions)
 - [Contributing Guide](../CONTRIBUTING.md)

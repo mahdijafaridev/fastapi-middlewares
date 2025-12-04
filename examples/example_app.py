@@ -5,14 +5,13 @@ import logging
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
+
 from middlewares import add_essentials
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 app = FastAPI(
-    title="FastAPI Middlewares Example",
-    description="Example app showing all middlewares in action",
-    version="1.0.0"
+    title="FastAPI Middlewares Example", description="Example app showing all middlewares in action", version="1.0.0"
 )
 
 add_essentials(
@@ -85,6 +84,7 @@ def create_item(item: dict):
 @app.get("/stream")
 async def stream_example():
     """Example streaming endpoint (response body will be logged)."""
+
     async def generate():
         for i in range(5):
             yield f"Chunk {i + 1}\n"
@@ -99,7 +99,11 @@ async def ai_chat_simulation():
     """Simulate AI/LLM streaming response - complete response will be logged after streaming."""
 
     async def generate():
-        response = "This is a simulated LLM/AI/ML response. The middleware will log the complete response after streaming finishes. This is useful for debugging and monitoring AI/LLM/ML applications."
+        response = (
+            "This is a simulated LLM/AI/ML response. "
+            "The middleware will log the complete response after streaming finishes. "
+            "This is useful for debugging and monitoring AI/LLM/ML applications."
+        )
 
         words = response.split()
         for word in words:
