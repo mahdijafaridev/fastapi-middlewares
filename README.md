@@ -169,7 +169,7 @@ app.add_middleware(
 - `logger_name`: Logger name (default: "fastapi_middlewares")
 - `skip_paths`: Paths to skip logging (default: ["/health", "/metrics"])
 - `log_response_body`: Enable response body logging (default: False)
-- `max_body_length`: Maximum response body length to log (default: 1000)
+- `max_body_length`: Maximum response body length in characters to log after UTF-8 decoding (default: 1000). Prevents excessive memory usage for large streams.
 
 #### Streaming Response Logging (NEW)
 
@@ -188,8 +188,6 @@ app.add_middleware(
     max_body_length=500,      # The maximum number of characters (after UTF-8 decoding) to log for body (default: 1000)
 )
 
-# NOTE: Be cautious of setting a HIGH max body length, as large values use more memory to buffer the response. Small values help prevent excessive memory usage.
-
 @app.get("/ai/chat")
 async def ai_chat():
     async def generate():
@@ -199,6 +197,16 @@ async def ai_chat():
     
     return StreamingResponse(generate(), media_type="text/plain")
 ```
+
+#### Important: Memory Considerations
+
+The middleware buffers up to `max_body_length` characters in memory. For large streaming responses:
+
+- ✅ **Safe:** `max_body_length=1000` (default) - ~1KB of text
+- ⚠️ **Caution:** `max_body_length=100000` - ~100KB buffered
+- ❌ **Risk:** `max_body_length=10000000` - ~10MB buffered per request
+
+**Best practice:** Keep `max_body_length` small (≤5000) for production environments with high traffic.
 
 **What gets logged:**
 - The complete response after all chunks are sent

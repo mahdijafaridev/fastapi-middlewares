@@ -151,12 +151,14 @@ class LoggingMiddleware:
         logger_name: str = "fastapi_middlewares",
         skip_paths: list[str] | None = None,
         log_response_body: bool = False,
-        max_body_length: int = 1000,
+        log_response_body_paths: list[str] | None = None,
+        max_body_length: int = 1000,  # Maximum characters (after UTF-8 decode) to log
     ) -> None:
         self.app = app
         self.logger = logging.getLogger(logger_name)
         self.skip_paths = skip_paths or ["/health", "/metrics"]
         self.log_response_body = log_response_body
+        self.log_response_body_paths = log_response_body_paths
         self.max_body_length = max_body_length
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -185,6 +187,8 @@ class LoggingMiddleware:
         }
         self.logger.info(f"Request started: {json.dumps(log_data)}")
 
+        should_log_body = self._should_log_response_body(path)
+
         response_chunks = []
         content_type = None
         total_size = 0
@@ -202,8 +206,9 @@ class LoggingMiddleware:
                         content_type = header_value.decode()
                         break
 
-            if self.log_response_body and message["type"] == "http.response.body":
+            if should_log_body and message["type"] == "http.response.body":
                 body = message.get("body", b"")
+
                 if body and not size_limit_exceeded:
                     if total_size + len(body) > self.max_body_length:
                         remaining = self.max_body_length - total_size
@@ -234,6 +239,23 @@ class LoggingMiddleware:
             log_level = "info" if 200 <= status_code < 400 else "warning"
             getattr(self.logger, log_level)(f"Request completed: {json.dumps(response_log)}")
 
+    def _should_log_response_body(self, path: str) -> bool:
+        """
+        Determine if response body should be logged for the given path.
+
+        Rules:
+        1. If log_response_body is False, never log
+        2. If log_response_body is True and log_response_body_paths is None, log all paths
+        3. If log_response_body is True and log_response_body_paths is set, only log matching paths
+        """
+        if not self.log_response_body:
+            return False
+
+        if self.log_response_body_paths is None:
+            return True
+
+        return any(path.startswith(p) for p in self.log_response_body_paths)
+
     def _log_response_body(
         self,
         chunks: list[bytes],
@@ -242,7 +264,18 @@ class LoggingMiddleware:
         was_truncated: bool = False,
     ) -> None:
         """Log the complete response body after streaming finishes."""
+        if not chunks and not was_truncated:
+            return
+
         if not chunks:
+            body_info = {
+                "request_id": request_id,
+                "truncated": True,
+                "full_length": "exceeded max_body_length",
+            }
+            self.logger.info(
+                f"Response body (truncated, no content captured): {json.dumps(body_info, ensure_ascii=False)}"
+            )
             return
 
         is_text_content = content_type and any(

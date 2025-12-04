@@ -497,6 +497,97 @@ class TestStreamingResponseLogging:
         log_json = json.loads(body_logs[0].replace("Response body: ", ""))
         assert len(log_json["body"]) == 100
 
+    def test_empty_streaming_response(self, app, client, caplog):
+        """Empty streaming response should be handled gracefully."""
+        app.add_middleware(
+            LoggingMiddleware,
+            logger_name=self.LOGGER_NAME,
+            log_response_body=True,
+        )
+        self.setup_streaming_route(app, [])  # Empty chunks
+
+        with caplog.at_level(logging.INFO, logger=self.LOGGER_NAME):
+            response = client.get("/stream")
+
+        assert response.text == ""
+        body_logs = get_logs(caplog, self.LOGGER_NAME, "Response body:")
+        assert len(body_logs) == 0  # No log for empty body
+
+    def test_streaming_with_empty_chunks(self, app, client, caplog):
+        """Streaming with interspersed empty chunks should work."""
+        app.add_middleware(
+            LoggingMiddleware,
+            logger_name=self.LOGGER_NAME,
+            log_response_body=True,
+        )
+        self.setup_streaming_route(app, [b"Hello", b"", b" ", b"", b"World"])
+
+        with caplog.at_level(logging.INFO, logger=self.LOGGER_NAME):
+            response = client.get("/stream")
+
+        assert response.text == "Hello World"
+        body_logs = get_logs(caplog, self.LOGGER_NAME, "Response body:")
+        assert "Hello World" in body_logs[0]
+
+    def test_streaming_invalid_utf8(self, app, client, caplog):
+        """Invalid UTF-8 bytes should be handled gracefully."""
+        app.add_middleware(
+            LoggingMiddleware,
+            logger_name=self.LOGGER_NAME,
+            log_response_body=True,
+        )
+        # Invalid UTF-8 sequence
+        self.setup_streaming_route(app, [b"Hello ", b"\xff\xfe", b" World"])
+
+        with caplog.at_level(logging.INFO, logger=self.LOGGER_NAME):
+            client.get("/stream")
+
+        body_logs = get_logs(caplog, self.LOGGER_NAME, "Response body")
+        assert "decode error" in body_logs[0]
+
+    def test_logs_body_for_specific_paths_only(self, app, client, caplog):
+        """Body logging should respect log_response_body_paths."""
+        app.add_middleware(
+            LoggingMiddleware,
+            logger_name=self.LOGGER_NAME,
+            log_response_body=True,
+            log_response_body_paths=["/api/chat"],  # Only log this path
+        )
+
+        self.setup_streaming_route(app, [b"Should be logged"], media_type="text/plain")
+
+        @app.get("/other")
+        def other():
+            return StreamingResponse(iter([b"Should NOT be logged"]), media_type="text/plain")
+
+        with caplog.at_level(logging.INFO, logger=self.LOGGER_NAME):
+            client.get("/stream")  # Assuming /stream doesn't match
+            client.get("/other")
+
+        body_logs = get_logs(caplog, self.LOGGER_NAME, "Response body:")
+        assert len(body_logs) == 0  # Neither should be logged as paths don't match
+
+    def test_content_type_case_insensitive(self, app, client, caplog):
+        """Content-Type header check should be case-insensitive."""
+        app.add_middleware(
+            LoggingMiddleware,
+            logger_name=self.LOGGER_NAME,
+            log_response_body=True,
+        )
+
+        @app.get("/mixed-case")
+        def mixed():
+            return StreamingResponse(
+                iter([b"Test"]),
+                headers={"Content-Type": "TEXT/PLAIN"},  # Uppercase
+            )
+
+        with caplog.at_level(logging.INFO, logger=self.LOGGER_NAME):
+            client.get("/mixed-case")
+
+        body_logs = get_logs(caplog, self.LOGGER_NAME, "Response body:")
+        assert "Test" in body_logs[0]
+
 
 # ============================================================================
 # ErrorHandling Middleware Tests

@@ -21,7 +21,7 @@ add_essentials(
     include_traceback=True,  # Set to False in production
     logger_name="example_app",
     log_response_body=True,  # Enable response body logging
-    max_body_length=500,     # Limit logged body size to 500 characters. Beware: larger values increase memory usage!
+    max_body_length=500,  # Max body length in characters (after UTF-8 decode). Keep ≤5000 for production.
 )
 
 
@@ -96,7 +96,8 @@ async def stream_example():
 
 @app.get("/ai/chat")
 async def ai_chat_simulation():
-    """Simulate AI/LLM streaming response (like OpenAI's ChatGPT)."""
+    """Simulate AI/LLM streaming response - complete response will be logged after streaming."""
+
     async def generate():
         response = "This is a simulated LLM/AI/ML response. The middleware will log the complete response after streaming finishes. This is useful for debugging and monitoring AI/LLM/ML applications."
 
@@ -151,10 +152,12 @@ if __name__ == "__main__":
     print("  curl http://localhost:8000/stream")
     print("  curl http://localhost:8000/ai/chat")
     print("  curl -H 'Accept-Encoding: gzip' http://localhost:8000/large")
-    print("\nNEW FEATURE - Response Body Logging:")
-    print("  The complete streaming response is now logged after streaming completes")
-    print("  Check the console logs to see the full response body")
-    print("  Especially useful for AI/LLM endpoints!")
+    print("\nStreaming Response Body Logging:")
+    print("  ✓ Complete streamed responses logged after streaming finishes")
+    print("  ✓ Handles text, JSON, and binary content automatically")
+    print("  ✓ Truncates at max_body_length to prevent memory issues")
+    print("  ✓ Perfect for debugging AI/LLM streaming endpoints")
+    print("  Check console logs after calling /stream or /ai/chat")
     print("\nCheck the response headers for:")
     print("  - X-Request-ID: Unique request identifier")
     print("  - X-Process-Time: Request processing time")
