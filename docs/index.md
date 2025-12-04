@@ -41,12 +41,19 @@ Adds OWASP-recommended security headers to all responses.
 - Content type sniffing prevention
 
 ### LoggingMiddleware
-Structured JSON logging for all requests and responses.
+Structured JSON logging for all requests and responses with streaming support.
 
 **Use cases:**
 - Centralized logging systems
 - Request auditing
 - Performance analysis
+- **NEW: AI/LLM response monitoring**
+
+**Features:**
+- Complete streaming response logging
+- Automatic truncation for memory safety
+- Binary content detection
+- UTF-8 decode error handling
 
 ### ErrorHandlingMiddleware
 Catches exceptions and returns well-formatted error responses.

@@ -150,10 +150,16 @@ class LoggingMiddleware:
         app: ASGIApp,
         logger_name: str = "fastapi_middlewares",
         skip_paths: list[str] | None = None,
+        log_response_body: bool = False,
+        log_response_body_paths: list[str] | None = None,
+        max_body_length: int = 1000,  # Maximum characters (after UTF-8 decode) to log
     ) -> None:
         self.app = app
         self.logger = logging.getLogger(logger_name)
         self.skip_paths = skip_paths or ["/health", "/metrics"]
+        self.log_response_body = log_response_body
+        self.log_response_body_paths = log_response_body_paths
+        self.max_body_length = max_body_length
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -181,11 +187,41 @@ class LoggingMiddleware:
         }
         self.logger.info(f"Request started: {json.dumps(log_data)}")
 
+        should_log_body = self._should_log_response_body(path)
+
+        response_chunks = []
+        content_type = None
+        total_size = 0
+        size_limit_exceeded = False
+
         async def send_with_logging(message):
-            nonlocal status_code
+            nonlocal status_code, content_type, total_size, size_limit_exceeded
 
             if message["type"] == "http.response.start":
                 status_code = message.get("status", 500)
+
+                headers = message.get("headers", [])
+                for header_name, header_value in headers:
+                    if header_name.lower() == b"content-type":
+                        content_type = header_value.decode()
+                        break
+
+            if should_log_body and message["type"] == "http.response.body":
+                body = message.get("body", b"")
+
+                if body and not size_limit_exceeded:
+                    if total_size + len(body) > self.max_body_length:
+                        remaining = self.max_body_length - total_size
+                        if remaining > 0:
+                            response_chunks.append(body[:remaining])
+                            total_size += remaining
+                        size_limit_exceeded = True
+                    else:
+                        response_chunks.append(body)
+                        total_size += len(body)
+
+                if not message.get("more_body", False):
+                    self._log_response_body(response_chunks, content_type, request_id, size_limit_exceeded)
 
             await send(message)
 
@@ -202,6 +238,83 @@ class LoggingMiddleware:
 
             log_level = "info" if 200 <= status_code < 400 else "warning"
             getattr(self.logger, log_level)(f"Request completed: {json.dumps(response_log)}")
+
+    def _should_log_response_body(self, path: str) -> bool:
+        """
+        Determine if response body should be logged for the given path.
+
+        Rules:
+        1. If log_response_body is False, never log
+        2. If log_response_body is True and log_response_body_paths is None, log all paths
+        3. If log_response_body is True and log_response_body_paths is set, only log matching paths
+        """
+        if not self.log_response_body:
+            return False
+
+        if self.log_response_body_paths is None:
+            return True
+
+        return any(path.startswith(p) for p in self.log_response_body_paths)
+
+    def _log_response_body(
+        self,
+        chunks: list[bytes],
+        content_type: str | None,
+        request_id: str,
+        was_truncated: bool = False,
+    ) -> None:
+        """Log the complete response body after streaming finishes."""
+        if not chunks and not was_truncated:
+            return
+
+        if not chunks:
+            body_info = {
+                "request_id": request_id,
+                "truncated": True,
+                "full_length": "exceeded max_body_length",
+            }
+            self.logger.info(
+                f"Response body (truncated, no content captured): {json.dumps(body_info, ensure_ascii=False)}"
+            )
+            return
+
+        is_text_content = content_type and any(
+            t in content_type.lower() for t in ["text", "json", "xml", "javascript", "html"]
+        )
+
+        if not is_text_content:
+            body_info = {
+                "request_id": request_id,
+                "content_type": content_type or "unknown",
+                "size": sum(len(c) for c in chunks),
+            }
+            log_msg = "Response body (binary or unknown type)" if content_type is None else "Response body (binary)"
+            self.logger.info(f"{log_msg}: {json.dumps(body_info, ensure_ascii=False)}")
+            return
+
+        try:
+            full_body = b"".join(chunks).decode("utf-8")
+
+            if was_truncated or len(full_body) >= self.max_body_length:
+                body_log = {
+                    "request_id": request_id,
+                    "body": full_body,
+                    "truncated": True,
+                    "full_length": "exceeded max_body_length" if was_truncated else len(full_body),
+                }
+            else:
+                body_log = {
+                    "request_id": request_id,
+                    "body": full_body,
+                }
+
+            self.logger.info(f"Response body: {json.dumps(body_log, ensure_ascii=False)}")
+        except UnicodeDecodeError:
+            body_info = {
+                "request_id": request_id,
+                "size": sum(len(c) for c in chunks),
+            }
+            self.logger.info(f"Response body (decode error): {json.dumps(body_info, ensure_ascii=False)}")
 
 
 class ErrorHandlingMiddleware:
@@ -289,13 +402,20 @@ def add_essentials(
     enable_gzip=True,
     include_traceback=False,
     logger_name="fastapi_middlewares",
+    log_response_body=False,
+    max_body_length=1000,
 ):
     """
     Add all essential middlewares in the correct order.
     Order matters! Add from outermost to innermost.
     """
     app.add_middleware(ErrorHandlingMiddleware, include_traceback=include_traceback)
-    app.add_middleware(LoggingMiddleware, logger_name=logger_name)
+    app.add_middleware(
+        LoggingMiddleware,
+        logger_name=logger_name,
+        log_response_body=log_response_body,
+        max_body_length=max_body_length,
+    )
     app.add_middleware(RequestTimingMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestIDMiddleware)

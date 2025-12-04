@@ -1,14 +1,18 @@
 """Example FastAPI app using all middlewares."""
 
+import asyncio
 import logging
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from middlewares import add_essentials
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 app = FastAPI(
-    title="FastAPI Middlewares Example", description="Example app showing all middlewares in action", version="1.0.0"
+    title="FastAPI Middlewares Example",
+    description="Example app showing all middlewares in action",
+    version="1.0.0"
 )
 
 add_essentials(
@@ -16,6 +20,8 @@ add_essentials(
     cors_origins=["http://localhost:3000", "http://localhost:5173"],
     include_traceback=True,  # Set to False in production
     logger_name="example_app",
+    log_response_body=True,  # Enable response body logging
+    max_body_length=500,  # Max body length in characters (after UTF-8 decode). Keep ≤5000 for production.
 )
 
 
@@ -30,6 +36,8 @@ def root(request: Request):
             "health": "/health",
             "users": "/users/{user_id}",
             "items": "/items?limit=10",
+            "stream": "/stream",
+            "ai_chat": "/ai/chat",
             "error": "/error",
             "not_found": "/not-found",
             "slow": "/slow",
@@ -74,6 +82,33 @@ def create_item(item: dict):
     return {"message": "Item created", "item": item, "id": 123}
 
 
+@app.get("/stream")
+async def stream_example():
+    """Example streaming endpoint (response body will be logged)."""
+    async def generate():
+        for i in range(5):
+            yield f"Chunk {i + 1}\n"
+            await asyncio.sleep(0.1)
+        yield "Stream complete!\n"
+
+    return StreamingResponse(generate(), media_type="text/plain")
+
+
+@app.get("/ai/chat")
+async def ai_chat_simulation():
+    """Simulate AI/LLM streaming response - complete response will be logged after streaming."""
+
+    async def generate():
+        response = "This is a simulated LLM/AI/ML response. The middleware will log the complete response after streaming finishes. This is useful for debugging and monitoring AI/LLM/ML applications."
+
+        words = response.split()
+        for word in words:
+            yield word + " "
+            await asyncio.sleep(0.05)
+
+    return StreamingResponse(generate(), media_type="text/plain")
+
+
 @app.get("/error")
 def trigger_error():
     """Endpoint that raises an error (for testing error handling)."""
@@ -114,7 +149,15 @@ if __name__ == "__main__":
     print("  curl -I http://localhost:8000/users/1")
     print("  curl http://localhost:8000/error")
     print("  curl http://localhost:8000/slow")
+    print("  curl http://localhost:8000/stream")
+    print("  curl http://localhost:8000/ai/chat")
     print("  curl -H 'Accept-Encoding: gzip' http://localhost:8000/large")
+    print("\nStreaming Response Body Logging:")
+    print("  ✓ Complete streamed responses logged after streaming finishes")
+    print("  ✓ Handles text, JSON, and binary content automatically")
+    print("  ✓ Truncates at max_body_length to prevent memory issues")
+    print("  ✓ Perfect for debugging AI/LLM streaming endpoints")
+    print("  Check console logs after calling /stream or /ai/chat")
     print("\nCheck the response headers for:")
     print("  - X-Request-ID: Unique request identifier")
     print("  - X-Process-Time: Request processing time")

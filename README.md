@@ -2,11 +2,12 @@
 
 Essential middlewares for FastAPI applications.
 
-
 [![CI](https://github.com/mahdijafaridev/fastapi-middlewares/actions/workflows/ci.yml/badge.svg)](https://github.com/mahdijafaridev/fastapi-middlewares/actions/workflows/ci.yml)
-[![PyPI Downloads](https://static.pepy.tech/personalized-badge/fastapi-middlewares?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/fastapi-middlewares)[![PyPI version](https://badge.fury.io/py/fastapi-middlewares.svg)](https://badge.fury.io/py/fastapi-middlewares)
+[![security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)
+[![PyPI Version](https://img.shields.io/pypi/v/fastapi-middlewares.svg)](https://pypi.org/project/fastapi-middlewares/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/fastapi-middlewares.svg)](https://pypi.org/project/fastapi-middlewares/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Downloads](https://static.pepy.tech/badge/fastapi-middlewares)](https://pepy.tech/project/fastapi-middlewares)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
 
@@ -14,6 +15,7 @@ Essential middlewares for FastAPI applications.
 - ⏱️ **Request Timing** - Measure response times
 - 🔒 **Security Headers** - OWASP-compliant security headers
 - 📝 **Structured Logging** - JSON-formatted request/response logs
+- 🌊 **Streaming Response Logging** - Log complete streamed responses (perfect for AI/LLM apps)
 - 🚨 **Error Handling** - Graceful error responses with tracebacks
 - ⚡ **Easy Setup** - One-line configuration with sensible defaults
 
@@ -166,6 +168,66 @@ app.add_middleware(
 **Options:**
 - `logger_name`: Logger name (default: "fastapi_middlewares")
 - `skip_paths`: Paths to skip logging (default: ["/health", "/metrics"])
+- `log_response_body`: Enable response body logging (default: False)
+- `max_body_length`: Maximum response body length in characters to log after UTF-8 decoding (default: 1000). Prevents excessive memory usage for large streams.
+
+#### Streaming Response Logging (NEW)
+
+Perfect for AI/LLM applications! The middleware can now log the complete streamed response after streaming finishes.
+
+```python
+from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
+from middlewares import LoggingMiddleware
+
+app = FastAPI()
+
+app.add_middleware(
+    LoggingMiddleware,
+    log_response_body=True,  # Enable body logging
+    max_body_length=500,      # The maximum number of characters (after UTF-8 decoding) to log for body (default: 1000)
+)
+
+@app.get("/ai/chat")
+async def ai_chat():
+    async def generate():
+        # Simulate streaming AI response
+        for word in "Hello from AI assistant!".split():
+            yield word + " "
+    
+    return StreamingResponse(generate(), media_type="text/plain")
+```
+
+#### Important: Memory Considerations
+
+The middleware buffers up to `max_body_length` characters in memory. For large streaming responses:
+
+- ✅ **Safe:** `max_body_length=1000` (default) - ~1KB of text
+- ⚠️ **Caution:** `max_body_length=100000` - ~100KB buffered
+- ❌ **Risk:** `max_body_length=10000000` - ~10MB buffered per request
+
+**Best practice:** Keep `max_body_length` small (≤5000) for production environments with high traffic.
+
+**What gets logged:**
+- The complete response after all chunks are sent
+- Truncated if longer than `max_body_length`
+- Only text-based responses (JSON, HTML, text)
+- Binary responses only log size and content type
+
+**Log output:**
+```json
+{
+  "request_id": "550e8400-...",
+  "body": "Hello from AI assistant! ",
+  "truncated": false
+}
+```
+
+**Use cases:**
+- Debugging AI/LLM streaming responses
+- Monitoring chatbot conversations
+- Auditing API responses
+- Testing streaming endpoints
 
 ### 5. Error Handling Middleware
 
@@ -279,6 +341,7 @@ app.add_middleware(ErrorHandlingMiddleware) # 1. Catch errors (outermost)
 
 ```python
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from middlewares import add_essentials
 
 app = FastAPI(title="My API")
@@ -288,7 +351,9 @@ add_essentials(
     app,
     cors_origins=["http://localhost:3000"],
     include_traceback=False,  # Set True for development
-    logger_name="my_api"
+    logger_name="my_api",
+    log_response_body=True,   # NEW: Log response bodies
+    max_body_length=500,      # NEW: max body length in characters
 )
 
 @app.get("/")
@@ -300,6 +365,15 @@ def get_user(user_id: int):
     if user_id < 1:
         raise ValueError("Invalid user ID")
     return {"user_id": user_id, "name": "John"}
+
+@app.get("/ai/chat")
+async def ai_chat():
+    """Streaming AI endpoint - response will be logged!"""
+    async def generate():
+        for word in "This is a streaming AI response".split():
+            yield word + " "
+    
+    return StreamingResponse(generate(), media_type="text/plain")
 
 @app.get("/error")
 def error():
@@ -316,14 +390,10 @@ Test it:
 # Check headers
 curl -I http://localhost:8000/
 
-# Expected headers:
-# X-Request-ID: 550e8400-...
-# X-Process-Time: 0.0245
-# X-Content-Type-Options: nosniff
-# X-Frame-Options: DENY
-# Cache-Control: no-store, max-age=0
-# Content-Security-Policy: frame-ancestors 'none'
-# Referrer-Policy: no-referrer
+# Test streaming with body logging
+curl http://localhost:8000/ai/chat
+
+# Check logs to see the complete streamed response
 ```
 
 ## Development
